@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync('player.js', 'utf8');
 const id = 'f7b6cb8cdec08dfbda31fbcca2281288';
 
-async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true) {
+async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true, syncDuringSeek = false) {
     const logs = [], events = {}, commands = [], elements = {message: {}, diagnostics: {}, resume: {addEventListener() {}}, screen: {}};
     let clock = 1000, timer, resolveOptions;
     const options = new Promise(resolve => { resolveOptions = resolve; });
@@ -17,7 +17,15 @@ async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true) {
         async load(url) { this.url = url; }
         async play() { commands.push('play'); }
         async pause() { commands.push('pause'); }
-        async seek(time) { commands.push(Number(time)); events.time(time); }
+        async seek(time) {
+            commands.push(Number(time)); events.time(time);
+            if (syncDuringSeek) {
+                if (commands.filter(command => typeof command === 'number').length > 3) throw new Error('Repeated startup seek');
+                clock += 350;
+                context.window.ixRutube.sync(Number(time) / 1000 + 0.35);
+                await Promise.resolve();
+            }
+        }
         getStats() { return stats; }
         async destroy() { commands.push('destroy'); }
     }
@@ -64,6 +72,12 @@ async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true) {
     test.connect(); test.connect(); await test.flush();
     assert.equal(test.player.url, 'https://river.rutube.ru/movie.m3u8');
     assert.equal(test.commands.filter(command => command === 'play').length, 1);
+    test = await fixture(undefined, true, true); await test.load();
+    assert.equal(test.commands.filter(command => typeof command === 'number').length, 1,
+        'periodic game sync during the first seek must not restart that seek until READY');
+    assert.equal(test.bridge.status().busy, false);
+    test.frame(43); test.frame(44);
+    assert(test.bridge.status().played);
 
     const canvasWindow = {};
     vm.runInNewContext(fs.readFileSync('canvas-renderer.js', 'utf8'), {window: canvasWindow});

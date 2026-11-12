@@ -39,6 +39,9 @@ const {chromium} = require('playwright');
                     const response = await context.request.fetch(url, {method, headers: range ? {Range: range} : {}, timeout: 35000});
                     const data = method === 'HEAD' ? Buffer.alloc(0) : await response.body();
                     assert(data.length <= 4 * 1024 * 1024);
+                    if (process.env.STOCK_CEF === '1' && address.pathname.endsWith('.ts')) {
+                        await new Promise(resolve => setTimeout(resolve, 350));
+                    }
                     transfers.push({host: address.hostname, bytes: data.length, status: response.status()});
                     const encoded = data.toString('base64');
                     for (let offset = 0; offset < encoded.length; offset += 131072) {
@@ -56,6 +59,11 @@ const {chromium} = require('playwright');
             await page.addInitScript(() => {
                 window.ixStream = {request: (...args) => { window.nativeMediaRequest(...args); }};
                 window.ixStreamReady = true;
+                const initialTime = Number(new URLSearchParams(location.hash.slice(1)).get('t'));
+                const started = Date.now();
+                window.gameSyncTimer = setInterval(() => {
+                    if (window.ixRutube) window.ixRutube.sync(initialTime + (Date.now() - started) / 1000);
+                }, 300);
             });
             try {
                 await page.goto(base + '?stream-check=' + Date.now() + '#v=' + id + '&t=60&volume=0&debug=1');
@@ -64,7 +72,17 @@ const {chromium} = require('playwright');
                 if (await page.evaluate(() => AVPlayer.audioContext.state === 'suspended')) {
                     await page.locator('#resume').click({timeout: 10000});
                 }
-                await page.waitForFunction(() => window.ixRutube.status().played && window.ixRutube.status().time > 63, undefined, {timeout: 90000});
+                await page.waitForFunction(() => window.ixRutube.status().played && !window.ixRutube.status().busy, undefined, {timeout: 90000});
+                const first = await page.evaluate(() => window.ixRutube.status());
+                await page.waitForFunction(start => {
+                    const status = window.ixRutube.status();
+                    return status.time > start.time + 3 && status.videoFrames > start.videoFrames + 20;
+                }, first, {timeout: 30000});
+                const startup = await page.evaluate(() => {
+                    clearInterval(window.gameSyncTimer);
+                    return window.ixRutube.status();
+                });
+                assert(startup.seekCount <= 2, '300 ms game sync must not continuously restart startup seeking');
                 await page.evaluate(() => window.ixRutube.pause());
                 await page.waitForFunction(() => !window.ixRutube.status().busy && window.ixRutube.status().paused);
                 const initial = await page.evaluate(() => window.ixRutube.status());
@@ -87,7 +105,9 @@ const {chromium} = require('playwright');
                 assert.equal(signals.filter(line => line === 'READY:rutube').length, 1);
                 const bytes = transfers.reduce((sum, transfer) => sum + transfer.bytes, 0);
                 assert(bytes < 20 * 1024 * 1024, 'playback must stream bounded fragments rather than an entire movie');
-                results.push({id, title: sources[id].title, browser: browser.version(), status, bytes, requests: transfers.length});
+                results.push({id, title: sources[id].title, browser: browser.version(), gameSyncIntervalMs: 300,
+                    startupSeekCount: startup.seekCount, steadyVideoFrames: startup.videoFrames - first.videoFrames,
+                    status, bytes, requests: transfers.length});
                 console.log(JSON.stringify(results.at(-1)));
             } catch (error) {
                 console.error(JSON.stringify({id, failures, signals: signals.slice(-50), transfers, state: await page.evaluate(() => ({

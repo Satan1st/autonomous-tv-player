@@ -9,6 +9,7 @@
     var paused = params.get('paused') === '1', volume = number(params.get('volume'), 0, 1);
     var target = number(params.get('t'), 0, 43200), targetAt = Date.now(), startedAt = Date.now();
     var current = 0, previous = 0, duration = 0, state = 'loading', seekPending = true, streamURL = null;
+    var initiallySynced = false, seekCount = 0;
     diagnostics.hidden = params.get('debug') !== '1';
 
     function number(value, fallback, maximum) {
@@ -18,7 +19,8 @@
     function report(next, detail) {
         state = next;
         diagnostics.textContent = next + (detail ? ': ' + detail : '');
-        console.log('IXTV:' + JSON.stringify({version: 4, state: next, detail: detail || '', decoder: 'wasm-h264-aac',
+        console.log('IXTV:' + JSON.stringify({version: 5, state: next, detail: detail || '', decoder: 'wasm-h264-aac',
+            ready: ready, busy: busy, seekCount: seekCount,
             renderer: window.ixCanvasVideo ? window.ixCanvasVideo.renderer : null,
             capabilities: window.ixCanvasVideo ? window.ixCanvasVideo.capabilities : null}));
     }
@@ -45,8 +47,10 @@
                 if (seekPending) {
                     seekPending = false;
                     var time = Math.max(0, Math.min(desiredTime(), duration - 0.1));
-                    if (!played || Math.abs(current - time) > 3) {
+                    if (!initiallySynced || Math.abs(current - time) > 3) {
+                        seekCount++;
                         await player.seek(BigInt(Math.floor(time * 1000)));
+                        initiallySynced = true;
                         current = previous = time;
                     }
                 }
@@ -70,11 +74,15 @@
             target = number(value, 0, 43200); targetAt = Date.now(); seekPending = true; apply();
         },
         status: function () {
-            var stats = ready && player ? player.getStats() : {};
+            var stats = {};
+            try { if (player) stats = player.getStats() || {}; } catch (_) {}
             return {state: state, ready: ready, played: played, paused: paused, advertising: false, busy: busy,
+                initiallySynced: initiallySynced, seekCount: seekCount, visibility: document.visibilityState,
                 time: current, duration: duration, source: streamURL, decoder: 'wasm-h264-aac',
                 renderer: window.ixCanvasVideo ? window.ixCanvasVideo.renderer : null, nativeMedia: !!(player && player.useMSE),
                 videoFrames: Number(stats.videoFrameRenderCount || 0), audioFrames: Number(stats.audioFrameRenderCount || 0),
+                videoDecoded: Number(stats.videoFrameDecodeCount || 0), audioDecoded: Number(stats.audioFrameDecodeCount || 0),
+                videoTime: Number(stats.videoCurrentTime || 0) / 1000, audioTime: Number(stats.audioCurrentTime || 0) / 1000,
                 videoCodec: stats.videocodec || null, audioCodec: stats.audiocodec || null};
         }
     };
@@ -134,8 +142,10 @@
             player.on('ended', function () { active = false; report('ended'); });
             report('loading-stream');
             await player.load(streamURL, {isLive: false, ext: 'm3u8'});
+            report('starting-decoder');
             await player.play({audio: true, video: true, subtitle: false});
             active = ready = true;
+            report('synchronizing');
             await apply();
         } catch (reason) {
             error('STREAM_UNAVAILABLE', 'Не удалось открыть поток Rutube: ' + String(reason.message || reason));
