@@ -1,0 +1,200 @@
+{
+  "sourceRevision": "4bd0fdae",
+  "files": {
+    "avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/avplayer.js",
+      "bytes": 588347,
+      "sha256": "dab89fe363167e9b2cb3f595158909303e218ec1e8d14b0e07bb3ff3d7dc0a7f"
+    },
+    "773.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/773.avplayer.js",
+      "bytes": 95813,
+      "sha256": "cf20729206d3f87764b25b43e336f2c7cd38adaff2137f314eedb8c088e004a2"
+    },
+    "525.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/525.avplayer.js",
+      "bytes": 7823,
+      "sha256": "2985b8b8ec27ba851792dad294c8f50509a398b241a4a8542a4ffd1dc70b967c"
+    },
+    "977.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/977.avplayer.js",
+      "bytes": 23551,
+      "sha256": "9b8086888d24ff5a62276e97f12377c6251d56ece7c2d8f5e7356ea7b8f8ff29"
+    },
+    "847.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/847.avplayer.js",
+      "bytes": 39177,
+      "sha256": "4225b140dfa7fc652340a6b972239f5272c0956f6becfa467993ef3f680a7489"
+    },
+    "680.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/680.avplayer.js",
+      "bytes": 44171,
+      "sha256": "cf1f538bbb2f6109ab28853e1241436ae09f50d040e56b99286eb5b450952de2"
+    },
+    "839.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/839.avplayer.js",
+      "bytes": 9004,
+      "sha256": "ab6e7961d7bd317b4b95e34f6aea733c43fb47eccfdb39f6bc71c498411b4057"
+    },
+    "312.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/312.avplayer.js",
+      "bytes": 26576,
+      "sha256": "20f32b06631878e32c36804842370cf2065aa69259f26340f68ba5ae36b0550d"
+    },
+    "600.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/600.avplayer.js",
+      "bytes": 59681,
+      "sha256": "8bc25f353071138f00eebe016603744c779cf7ff3c12e408c9298aaea27eec85"
+    },
+    "703.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/703.avplayer.js",
+      "bytes": 34072,
+      "sha256": "f89edb71fc198a99209525bf025124b6f532a006b018e43f0b4a6dd989eacf63"
+    },
+    "933.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/933.avplayer.js",
+      "bytes": 10104,
+      "sha256": "99775506e9bc6029551fabb0389d70193ff01179005800f21ee7e12721265bba"
+    },
+    "411.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/411.avplayer.js",
+      "bytes": 47862,
+      "sha256": "c30d904c34616be1485a100dd9496e66408bf1bb832aad81c386105fc5c3b7c0"
+    },
+    "318.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/318.avplayer.js",
+      "bytes": 7139,
+      "sha256": "e71000cd3016856e654cd206da7da21f8629b759f6c7f5b7091a8ec3cee95498"
+    },
+    "29.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/29.avplayer.js",
+      "bytes": 7108,
+      "sha256": "d8f80d7a587d191af9d1404ddc8aeefd3b216e980b76826de94ca881be843987"
+    },
+    "793.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/793.avplayer.js",
+      "bytes": 7524,
+      "sha256": "c9ea98d5d63fc95f26afe299d072dffe6eeb533aba21c96f33f3491b3497a2c4"
+    },
+    "836.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/836.avplayer.js",
+      "bytes": 5816,
+      "sha256": "b6d20f197034768934e9f4ea92af0eca5910261d9c4f978e61131fde5743a887"
+    },
+    "74.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/74.avplayer.js",
+      "bytes": 4116,
+      "sha256": "d08cb999286a646a910f3c8b2caf3ff3f49a8e94f2e0500dfa9819285225b7de"
+    },
+    "888.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/888.avplayer.js",
+      "bytes": 3175,
+      "sha256": "244eb4d70c83bbe649241b3507b97c532b961d3aac12db51aefa02bd69d62092"
+    },
+    "485.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/485.avplayer.js",
+      "bytes": 4968,
+      "sha256": "960ac159bff5478021b5682c1b08fa86b959801b3d406cf724f77937c3ac70b6"
+    },
+    "810.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/810.avplayer.js",
+      "bytes": 22828,
+      "sha256": "2367d85bc082931263be9a117854293bd2bf8cec70aa87b8f2a3a166c9a1b4b4"
+    },
+    "700.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/700.avplayer.js",
+      "bytes": 30421,
+      "sha256": "accf0980dd2e7b665f3769c678c1d939f0140ca212c7d8d52a7e75c74e4e1090"
+    },
+    "652.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/652.avplayer.js",
+      "bytes": 7738,
+      "sha256": "ba30311e542f3da590b2f576f14ba80194bd27f047a9650bfb3fcc1301b11cdd"
+    },
+    "719.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/719.avplayer.js",
+      "bytes": 23980,
+      "sha256": "ed5d3e83518398b38a7086e5694970e12a46b8ffb3a42207244d33243d3ec7f5"
+    },
+    "625.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/625.avplayer.js",
+      "bytes": 44302,
+      "sha256": "84fdccf3a631749a5c61583030f44b3b44e964323b524bfb6eee1b39e9257cbc"
+    },
+    "158.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/158.avplayer.js",
+      "bytes": 20278,
+      "sha256": "21a7fae8af3fef6850695aa3de01021fb09371ec14fc8eeda4418a473b2b1d9c"
+    },
+    "724.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/724.avplayer.js",
+      "bytes": 32462,
+      "sha256": "aa46971f57b233029c570f9d1d03fae7e98dfc0f5356b2a086aa7e1af11b6e9f"
+    },
+    "244.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/244.avplayer.js",
+      "bytes": 2706,
+      "sha256": "9979c6e99eb6ea056e75845e18a9407e3912bbec89e0a9ef9ecfa90b74448d3b"
+    },
+    "437.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/437.avplayer.js",
+      "bytes": 37106,
+      "sha256": "0ae45be65cd1ab1c1d47ea257f057e72a28121d4a172dd7bae3a4b044f8ea2cd"
+    },
+    "606.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/606.avplayer.js",
+      "bytes": 13009,
+      "sha256": "b1749976bd34f63b297a2cf026d6c2687b0a6a24284ea639a8dd3f5f1ecba4d6"
+    },
+    "809.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/809.avplayer.js",
+      "bytes": 41700,
+      "sha256": "8dc18fd732cc829c641c8a48b4aa137c7b0292dec0c0641231b418ee3a1bb974"
+    },
+    "757.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/757.avplayer.js",
+      "bytes": 85636,
+      "sha256": "85108ae05fd1f6d611d3e77ebe99ee370259dbd217e1986c42b956be10108778"
+    },
+    "73.avplayer.js": {
+      "url": "https://zhaohappy.github.io/libmedia/dist/avplayer/73.avplayer.js",
+      "bytes": 35963,
+      "sha256": "027df13f173dee4683700894ad4f6953c63864ec5e9670c1d88da053cacf7094"
+    },
+    "decode/h264.wasm": {
+      "url": "https://raw.githubusercontent.com/zhaohappy/libmedia/4bd0fdae/dist/decode/h264.wasm",
+      "bytes": 1454882,
+      "sha256": "b74abea1d814b89dd66d5072f9e0845db6d6b05102536560ed6141025d602120"
+    },
+    "decode/aac.wasm": {
+      "url": "https://raw.githubusercontent.com/zhaohappy/libmedia/4bd0fdae/dist/decode/aac.wasm",
+      "bytes": 694438,
+      "sha256": "9cbef85899775c7431dfffbd704d30fa185089f1f4280e2ea90be07e40b635c8"
+    },
+    "resample/resample.wasm": {
+      "url": "https://raw.githubusercontent.com/zhaohappy/libmedia/4bd0fdae/dist/resample/resample.wasm",
+      "bytes": 252290,
+      "sha256": "7709e04280d6f9487872cbcfbffa747032aaa5e45a72849a1aaceb05259b347d"
+    },
+    "stretchpitch/stretchpitch.wasm": {
+      "url": "https://raw.githubusercontent.com/zhaohappy/libmedia/4bd0fdae/dist/stretchpitch/stretchpitch.wasm",
+      "bytes": 45783,
+      "sha256": "9397d474f85fbf3d0bc6b5b78bb500d0329a7a2c4ce212c8531cd56514434a7a"
+    },
+    "cheap-polyfill.js": {
+      "url": "https://raw.githubusercontent.com/zhaohappy/libmedia/4bd0fdae/dist/cheap-polyfill.js",
+      "bytes": 4600,
+      "sha256": "a04524de0c0ca689dc306c84f2fca62f47d2a0b42cd126b2a7bf0d9b5b6fa8f5"
+    },
+    "COPYING.LGPLv3": {
+      "url": "https://raw.githubusercontent.com/zhaohappy/libmedia/4bd0fdae/COPYING.LGPLv3",
+      "bytes": 7650,
+      "sha256": "ea8af5e789cb2d4e9b10bce3874982ade163b749b6bfbdb32e2df21c4d106de1"
+    },
+    "COPYING.GPLv3": {
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/main/text/GPL-3.0-or-later.txt",
+      "bytes": 34674,
+      "sha256": "fb981668c18a279e285fc4d83fba1e836cc84dd4daa73c9697d3cfd2d8aca6e0"
+    }
+  }
+}

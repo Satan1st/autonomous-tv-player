@@ -3,7 +3,7 @@ name: Publish TV player
 on:
   push:
     branches: [main]
-    paths: [index.html, player.js, player.spec.js, catalog.json, .nojekyll, 'tools/smoke-playback.cjs', '.github/workflows/deploy-pages.yml']
+    paths: [index.html, player.js, player.spec.js, stream-fetch.js, sources.json, 'vendor/**', .nojekyll, 'tools/smoke-playback.cjs', '.github/workflows/deploy-pages.yml']
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -36,7 +36,8 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir _site
-          cp index.html player.js catalog.json .nojekyll _site/
+          cp index.html player.js stream-fetch.js .nojekyll _site/
+          cp -r vendor _site/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
