@@ -14,7 +14,7 @@ This transport is required: opening the page in an ordinary standalone browser d
 
 ## Decoder
 
-Unmodified libmedia `v1.3.1-6-g4bd0fdae` is vendored under `vendor/libmedia`, with baseline H.264/AAC WASM modules and LGPL notices/source references. WebCodecs, MSE, WebGPU, SIMD and shared-memory worker decoding are not required. Initial rendition selection is capped at 240p to bound the software-decoding cost on game clients.
+Unmodified libmedia `v1.3.1-6-g4bd0fdae` is vendored under `vendor/libmedia`, with baseline H.264/AAC WASM modules and LGPL notices/source references. WebCodecs, MSE, WebGPU, SIMD and shared-memory worker decoding are not required. Initial rendition selection targets 240p, or the lowest available rendition when the source offers nothing at or below 240p, to limit the software-decoding cost on game clients.
 
 `READY:rutube` is emitted after rendered video time advances. `status()` includes software-rendered video/audio frame counts. Add `debug=1` to the URL fragment for diagnostics. `STREAM_UNAVAILABLE` indicates a source/transport failure; `STREAM_DECODE` indicates decoder failure; `PLAYBACK_TIMEOUT` indicates no start within 60 seconds.
 
@@ -25,6 +25,8 @@ node player.spec.js
 ```
 
 The browser smoke check injects the same native transport interface, streams actual Rutube fragments into RAM, and checks software video/audio rendering, pause, seek, resume and bounded transfer size. Results identify the browser used. Game CEF rendering/performance must also be playtested; passing modern Chromium alone is not proof of stock GMod compatibility.
+
+On 2026-11-12, all ten cassette sources passed this check on **Chromium 86.0.4217.0**: [run 43224547461](https://github.com/Satan1st/autonomous-tv-player/actions/runs/43224547461). Each test streamed at most 4.1 MB of fragments, including a seek to 70% of the film; no film file was saved. This verifies the decoder in a matching Chromium generation, not the live GMod DHTML/native-HTTP integration or the television's in-world rendering.
 
 ## Removed approach
 
