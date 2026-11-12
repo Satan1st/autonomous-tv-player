@@ -1,0 +1,41 @@
+name: Check streaming in Chromium 86
+
+on:
+  workflow_dispatch:
+    inputs:
+      selection:
+        description: 'all or a cassette ID'
+        type: string
+        required: true
+        default: f7b6cb8cdec08dfbda31fbcca2281288
+
+permissions:
+  contents: read
+
+jobs:
+  playback:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install test tools
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install-deps chromium
+          curl --fail --location 'https://playwright.azureedge.net/builds/chromium/815036/chromium-linux.zip' --output "$RUNNER_TEMP/chromium86.zip"
+          unzip -q "$RUNNER_TEMP/chromium86.zip" -d "$RUNNER_TEMP/chromium86"
+      - name: Test software decoding and transport
+        env:
+          CHROMIUM_EXECUTABLE: ${{ runner.temp }}/chromium86/chrome-linux/chrome
+          VIDEO_IDS: ${{ inputs.selection }}
+        run: node tools/smoke-playback.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: streaming-chromium86-results
+          path: playback-results/
+          if-no-files-found: ignore
+          retention-days: 7
