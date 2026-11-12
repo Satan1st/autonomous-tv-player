@@ -18,6 +18,10 @@ Unmodified libmedia `v1.3.1-6-g4bd0fdae` is vendored under `vendor/libmedia`, wi
 
 `READY:rutube` is emitted after rendered video time advances. `status()` includes software-rendered video/audio frame counts. Add `debug=1` to the URL fragment for diagnostics. `STREAM_UNAVAILABLE` indicates a source/transport failure; `STREAM_DECODE` indicates decoder failure; `PLAYBACK_TIMEOUT` indicates no start within 60 seconds.
 
+The game's Media Player calls `.sync()` every 300 ms. Initial positioning is tracked separately from the `READY` signal, so a sync received during a slow seek cannot restart initial positioning indefinitely. Later seeks occur only when playback drifts by more than three seconds. Browser checks reproduce the 300 ms sync cadence and delayed media-fragment responses, then require sustained frame/time advancement.
+
+All ten sources passed the strengthened **Chromium 86** check with 300 ms game updates, 350 ms segment delays, WebGL disabled and native decoding blocked: [run 43235886680](https://github.com/Satan1st/autonomous-tv-player/actions/runs/43235886680). Every source performed one initial seek and rendered 70–92 further frames during the steady-playback check before pause/seek/resume.
+
 ## Verification
 
 ```sh
