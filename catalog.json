@@ -1,1 +1,19 @@
-{"version":1,"videos":{}}
+{
+  "version": 1,
+  "videos": {
+    "00000000000000000000000000000000": {
+      "id": "00000000000000000000000000000000",
+      "title": "WebM codec test",
+      "file": "00000000000000000000000000000000.vp8-vorbis.27d6a4fa90c1.webm",
+      "sha256": "27d6a4fa90c1a706ff7f49c5da676b6c79fcfbe7cf8de4bc17950eebb34a06ab",
+      "bytes": 350782,
+      "duration": 12.006,
+      "width": 480,
+      "height": 270,
+      "mime": "video/webm; codecs=\"vp8,vorbis\"",
+      "videoCodec": "vp8",
+      "audioCodec": "vorbis",
+      "url": "https://github.com/Satan1st/autonomous-tv-player/releases/download/media-webm-v1/00000000000000000000000000000000.vp8-vorbis.27d6a4fa90c1.webm"
+    }
+  }
+}
