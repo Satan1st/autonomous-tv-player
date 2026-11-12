@@ -29,7 +29,9 @@ const {chromium} = require('playwright');
                     for (let offset = 0; offset < encoded.length; offset += 131072) {
                         await page.evaluate(packet => window.ixStreamReply(packet), {id: requestID, part: encoded.slice(offset, offset + 131072)});
                     }
-                    await page.evaluate(packet => window.ixStreamReply(packet), {id: requestID, status: response.status(), headers: response.headers()});
+                    const headers = Object.fromEntries(Object.entries(response.headers()).filter(([name]) =>
+                        ['content-type', 'content-length', 'content-range', 'accept-ranges'].includes(name)));
+                    await page.evaluate(packet => window.ixStreamReply(packet), {id: requestID, status: response.status(), headers});
                     await response.dispose();
                 } catch (error) {
                     failures.push(error.message);
@@ -41,7 +43,8 @@ const {chromium} = require('playwright');
             });
             try {
                 await page.goto(base + '?stream-check=' + Date.now() + '#v=' + id + '&t=60&volume=0&debug=1');
-                await page.waitForFunction(() => window.AVPlayer && AVPlayer.audioContext, undefined, {timeout: 60000});
+                await page.waitForFunction(() => window.AVPlayer && AVPlayer.audioContext || window.ixRutube?.status().state === 'error', undefined, {timeout: 60000});
+                assert.notEqual(await page.evaluate(() => window.ixRutube.status().state), 'error', 'stream initialization failed');
                 if (await page.evaluate(() => AVPlayer.audioContext.state === 'suspended')) {
                     await page.locator('#resume').click({timeout: 10000});
                 }
