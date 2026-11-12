@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync('player.js', 'utf8');
 const id = 'f7b6cb8cdec08dfbda31fbcca2281288';
 
-async function fixture(hash = '#v=' + id + '&t=42') {
+async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true) {
     const logs = [], events = {}, commands = [], elements = {message: {}, diagnostics: {}, resume: {addEventListener() {}}, screen: {}};
     let clock = 1000, timer, resolveOptions;
     const options = new Promise(resolve => { resolveOptions = resolve; });
@@ -23,13 +23,14 @@ async function fixture(hash = '#v=' + id + '&t=42') {
     }
     const context = {AVPlayer: Player, URL, URLSearchParams, BigInt, Date: {now: () => clock},
         console: {log: line => logs.push(line)}, document: {getElementById: key => elements[key]},
-        window: {AVPlayer: Player, WebAssembly: {}, location: {hash}, addEventListener() {},
+        window: {AVPlayer: Player, WebAssembly: {}, ixStreamReady: nativeReady, location: {hash}, addEventListener() {},
             setInterval: callback => { timer = callback; }, clearInterval() {},
             fetch: async url => url.includes('/api/') ? {ok: true, json: () => options}
                 : {ok: true, text: async () => '#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=426x240\nhttps://river.rutube.ru/movie.m3u8\n#EXT-X-STREAM-INF:RESOLUTION=1280x720\nhttps://river.rutube.ru/hd.m3u8'} }};
     vm.runInNewContext(source, context);
     async function flush() { for (let i = 0; i < 30; i++) await Promise.resolve(); }
     return {logs, commands, elements, bridge: context.window.ixRutube, flush, get player() { return Player.instance; },
+        connect() { context.window.ixStreamReady = true; context.window.ixStreamStart(); },
         tick(milliseconds) { clock += milliseconds; },
         frame(time) { stats.videoFrameRenderCount += 2; stats.audioFrameRenderCount++; events.time(BigInt(time * 1000)); timer(); },
         async load() { resolveOptions({acl_access: {allowed: true}, duration: 5500000, video_balancer: {m3u8: 'https://bl.rutube.ru/master.m3u8'}}); await flush(); }};
@@ -57,6 +58,12 @@ async function fixture(hash = '#v=' + id + '&t=42') {
     assert(test.commands.includes(52000));
     test = await fixture('#v=invalid');
     assert(test.elements.message.textContent.includes('INVALID_VIDEO'));
+    test = await fixture(undefined, false); await test.load();
+    assert.equal(test.bridge.status().state, 'waiting-game-bridge');
+    assert(!test.player);
+    test.connect(); test.connect(); await test.flush();
+    assert.equal(test.player.url, 'https://river.rutube.ru/movie.m3u8');
+    assert.equal(test.commands.filter(command => command === 'play').length, 1);
 
     const handlers = {}, requests = [], window = {fetch: async () => 'ordinary-fetch', location: {href: 'https://example.com/'},
         ixStream: {request: (...args) => requests.push(args)}, atob, setTimeout, clearTimeout, addEventListener() {}};

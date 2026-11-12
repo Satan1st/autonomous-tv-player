@@ -162,5 +162,10 @@
         disposed = true; window.clearInterval(timer);
         if (player) player.destroy().catch(function () {});
     });
-    start();
+    var started = false;
+    window.ixStreamStart = function () {
+        if (!started && window.ixStreamReady) { started = true; start(); }
+    };
+    if (window.ixStreamReady) window.ixStreamStart();
+    else report('waiting-game-bridge');
 }());

@@ -42,6 +42,7 @@ const {chromium} = require('playwright');
             });
             await page.addInitScript(() => {
                 window.ixStream = {request: (...args) => { window.nativeMediaRequest(...args); }};
+                window.ixStreamReady = true;
             });
             try {
                 await page.goto(base + '?stream-check=' + Date.now() + '#v=' + id + '&t=60&volume=0&debug=1');
