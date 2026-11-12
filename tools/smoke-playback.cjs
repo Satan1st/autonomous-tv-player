@@ -18,6 +18,19 @@ const {chromium} = require('playwright');
             const signals = [], failures = [], transfers = [];
             page.on('console', message => signals.push(message.text()));
             page.on('pageerror', error => failures.push(error.message));
+            if (process.env.STOCK_CEF === '1') {
+                await page.addInitScript(() => {
+                    const original = HTMLCanvasElement.prototype.getContext;
+                    HTMLCanvasElement.prototype.getContext = function (type, options) {
+                        return type.toLowerCase().includes('webgl') ? null : original.call(this, type, options);
+                    };
+                    window.nativeCodecAttempts = 0;
+                    MediaSource.prototype.addSourceBuffer = function () {
+                        window.nativeCodecAttempts++;
+                        throw new DOMException('Native H264/AAC is unavailable in this stock-CEF test', 'NotSupportedError');
+                    };
+                });
+            }
             await page.exposeFunction('nativeMediaRequest', async (requestID, url, method, range) => {
                 const address = new URL(url);
                 assert(address.protocol === 'https:' && /(^|\.)(rutube\.ru|rtbcdn\.ru)$/.test(address.hostname));
@@ -64,6 +77,13 @@ const {chromium} = require('playwright');
                 await page.waitForFunction(time => window.ixRutube.status().time > time + 1, destination, {timeout: 60000});
                 await page.screenshot({path: 'playback-results/' + id + '.png'});
                 const status = await page.evaluate(() => window.ixRutube.status());
+                assert.equal(status.renderer, 'canvas2d');
+                assert.equal(status.nativeMedia, false);
+                if (process.env.STOCK_CEF === '1') {
+                    const capabilities = await page.evaluate(() => ({webgl: window.ixCanvasVideo.capabilities.webgl, attempts: window.nativeCodecAttempts}));
+                    assert.equal(capabilities.webgl, false);
+                    assert.equal(capabilities.attempts, 0, 'native codecs must never be selected');
+                }
                 assert.equal(signals.filter(line => line === 'READY:rutube').length, 1);
                 const bytes = transfers.reduce((sum, transfer) => sum + transfer.bytes, 0);
                 assert(bytes < 20 * 1024 * 1024, 'playback must stream bounded fragments rather than an entire movie');

@@ -6,7 +6,7 @@ Player: https://satan1st.github.io/autonomous-tv-player/
 
 ## In-game integration
 
-The `ix_rutube` service, version **4**, opens `/#v=<Rutube ID>&t=0&volume=0`. The existing cassette IDs are preserved. `window.ixRutube.play()`, `.pause()`, `.volume(0..1)`, `.sync(seconds)` and `.status()` provide the playback interface.
+The `ix_rutube` service, version **5**, opens `/#v=<Rutube ID>&t=0&volume=0`, with a fresh document query for each playback session. The existing cassette IDs are preserved. `window.ixRutube.play()`, `.pause()`, `.volume(0..1)`, `.sync(seconds)` and `.status()` provide the playback interface.
 
 Rutube does not grant cross-origin JavaScript access to its API/CDN from this Pages origin. The service provides a restricted, read-only **client-side** `DHTML:AddFunction` HTTP transport for HTTPS Rutube/CDN URLs. Fragments travel directly from Rutube to that player's GMod process and into the decoder's RAM. The game server handles only ordinary cassette metadata and shared playback state.
 
@@ -14,7 +14,7 @@ This transport is required: opening the page in an ordinary standalone browser d
 
 ## Decoder
 
-Unmodified libmedia `v1.3.1-6-g4bd0fdae` is vendored under `vendor/libmedia`, with baseline H.264/AAC WASM modules and LGPL notices/source references. WebCodecs, MSE, WebGPU, SIMD and shared-memory worker decoding are not required. Initial rendition selection targets 240p, or the lowest available rendition when the source offers nothing at or below 240p, to limit the software-decoding cost on game clients.
+Unmodified libmedia `v1.3.1-6-g4bd0fdae` is vendored under `vendor/libmedia`, with baseline H.264/AAC WASM modules and LGPL notices/source references. `canvas-renderer.js` adapts that pinned build to software YUV420-to-RGBA conversion and ordinary Canvas 2D. It explicitly prevents the library's automatic MSE fallback when WebGL is unavailable. WebGL, WebCodecs, MSE, WebGPU, SIMD and shared-memory worker decoding are not required. Initial rendition selection targets 240p, or the lowest available rendition when the source offers nothing at or below 240p, to limit the software-decoding cost on game clients.
 
 `READY:rutube` is emitted after rendered video time advances. `status()` includes software-rendered video/audio frame counts. Add `debug=1` to the URL fragment for diagnostics. `STREAM_UNAVAILABLE` indicates a source/transport failure; `STREAM_DECODE` indicates decoder failure; `PLAYBACK_TIMEOUT` indicates no start within 60 seconds.
 

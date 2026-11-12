@@ -18,7 +18,9 @@
     function report(next, detail) {
         state = next;
         diagnostics.textContent = next + (detail ? ': ' + detail : '');
-        console.log('IXTV:' + JSON.stringify({version: 3, state: next, detail: detail || '', decoder: 'wasm-h264-aac'}));
+        console.log('IXTV:' + JSON.stringify({version: 4, state: next, detail: detail || '', decoder: 'wasm-h264-aac',
+            renderer: window.ixCanvasVideo ? window.ixCanvasVideo.renderer : null,
+            capabilities: window.ixCanvasVideo ? window.ixCanvasVideo.capabilities : null}));
     }
     function error(code, reason) {
         message.textContent = reason + '\nКод: ' + code;
@@ -71,6 +73,7 @@
             var stats = ready && player ? player.getStats() : {};
             return {state: state, ready: ready, played: played, paused: paused, advertising: false, busy: busy,
                 time: current, duration: duration, source: streamURL, decoder: 'wasm-h264-aac',
+                renderer: window.ixCanvasVideo ? window.ixCanvasVideo.renderer : null, nativeMedia: !!(player && player.useMSE),
                 videoFrames: Number(stats.videoFrameRenderCount || 0), audioFrames: Number(stats.audioFrameRenderCount || 0),
                 videoCodec: stats.videocodec || null, audioCodec: stats.audiocodec || null};
         }
@@ -101,6 +104,7 @@
     async function start() {
         if (!/^[a-f0-9]{32}$/.test(id)) { error('INVALID_VIDEO', 'Не указан корректный ID кассеты.'); return; }
         if (!window.AVPlayer || !window.WebAssembly) { error('DECODER_UNAVAILABLE', 'Не загрузился программный декодер.'); return; }
+        if (!window.ixCanvasVideo || !window.ixCanvasVideo.installed) { error('RENDERER_UNAVAILABLE', 'Не загрузился программный вывод Canvas 2D.'); return; }
         try {
             report('resolving-stream');
             var options = await get('https://rutube.ru/api/play/options/' + id + '/?format=json', true);
@@ -111,7 +115,7 @@
             duration = number(Number(options.duration) / 1000, 0, 43200);
             if (!duration) throw new Error('Не определена длительность записи');
             if (disposed) return;
-            AVPlayer.setLogLevel(2);
+            AVPlayer.setLogLevel(3);
             player = new AVPlayer({
                 container: document.getElementById('screen'), enableHardware: false, enableWebCodecs: false,
                 enableWebGPU: false, enableWorker: false, enableAudioWorklet: false, preLoadTime: 2,
@@ -157,6 +161,11 @@
     }, 250);
     window.addEventListener('resize', function () {
         if (player) player.resize(window.innerWidth, window.innerHeight);
+    });
+    window.addEventListener('unhandledrejection', function (event) {
+        if (disposed) return;
+        var reason = event.reason;
+        error('STREAM_RUNTIME', String(reason && reason.message || reason || 'Ошибка выполнения декодера'));
     });
     window.addEventListener('pagehide', function () {
         disposed = true; window.clearInterval(timer);

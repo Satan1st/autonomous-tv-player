@@ -7,3 +7,5 @@ AVPlayer build: `v1.3.1-6-g4bd0fdae`, downloaded from the upstream project site.
 License: LGPL-3.0-or-later. See `COPYING.LGPLv3` and `COPYING.GPLv3`. Corresponding buildable sources and dependency/submodule references are available at the upstream revision above; FFmpeg sources are linked from that repository. These unmodified library files remain separate from the television controller and can be replaced with compatible builds.
 
 Only software libraries are included here. No film data is stored in this directory or repository.
+
+The separate `canvas-renderer.js` compatibility adapter installs a CPU/Canvas 2D renderer and enforces software decoding. Its webpack module IDs and 32-bit AVFrame layout are pinned to this exact build; updating libmedia requires updating and testing that adapter. The upstream distribution files themselves are unmodified.

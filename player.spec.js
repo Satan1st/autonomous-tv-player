@@ -23,7 +23,7 @@ async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true) {
     }
     const context = {AVPlayer: Player, URL, URLSearchParams, BigInt, Date: {now: () => clock},
         console: {log: line => logs.push(line)}, document: {getElementById: key => elements[key]},
-        window: {AVPlayer: Player, WebAssembly: {}, ixStreamReady: nativeReady, location: {hash}, addEventListener() {},
+        window: {AVPlayer: Player, WebAssembly: {}, ixCanvasVideo: {installed: true, renderer: 'canvas2d'}, ixStreamReady: nativeReady, location: {hash}, addEventListener() {},
             setInterval: callback => { timer = callback; }, clearInterval() {},
             fetch: async url => url.includes('/api/') ? {ok: true, json: () => options}
                 : {ok: true, text: async () => '#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=426x240\nhttps://river.rutube.ru/movie.m3u8\n#EXT-X-STREAM-INF:RESOLUTION=1280x720\nhttps://river.rutube.ru/hd.m3u8'} }};
@@ -64,6 +64,16 @@ async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true) {
     test.connect(); test.connect(); await test.flush();
     assert.equal(test.player.url, 'https://river.rutube.ru/movie.m3u8');
     assert.equal(test.commands.filter(command => command === 'play').length, 1);
+
+    const canvasWindow = {};
+    vm.runInNewContext(fs.readFileSync('canvas-renderer.js', 'utf8'), {window: canvasWindow});
+    const rgba = new Uint8ClampedArray(3 * 3 * 4);
+    canvasWindow.ixCanvasVideo.convert420(Uint8Array.from([16, 235, 16, 99, 235, 16, 235, 99, 16, 235, 16, 99]),
+        Uint8Array.from([128, 128, 128, 128]), Uint8Array.from([128, 128, 128, 128]), [4, 2, 2], 3, 3, false, true, rgba);
+    assert.deepEqual([...rgba.slice(0, 12)], [0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255]);
+    assert.deepEqual([...rgba.slice(24, 28)], [0, 0, 0, 255]);
+    canvasWindow.ixCanvasVideo.convert420(Uint8Array.from([0]), Uint8Array.from([128]), Uint8Array.from([128]), [1, 1, 1], 1, 1, true, false, rgba);
+    assert.deepEqual([...rgba.slice(0, 4)], [0, 0, 0, 255]);
 
     const handlers = {}, requests = [], window = {fetch: async () => 'ordinary-fetch', location: {href: 'https://example.com/'},
         ixStream: {request: (...args) => requests.push(args)}, atob, setTimeout, clearTimeout, addEventListener() {}};

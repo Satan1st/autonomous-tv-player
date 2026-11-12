@@ -3,7 +3,7 @@ name: Publish TV player
 on:
   push:
     branches: [main]
-    paths: [index.html, player.js, player.spec.js, stream-fetch.js, sources.json, 'vendor/**', .nojekyll, 'tools/smoke-playback.cjs', '.github/workflows/deploy-pages.yml']
+    paths: [index.html, player.js, player.spec.js, stream-fetch.js, canvas-renderer.js, sources.json, 'vendor/**', .nojekyll, 'tools/smoke-playback.cjs', '.github/workflows/deploy-pages.yml']
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -36,7 +36,7 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir _site
-          cp index.html player.js stream-fetch.js .nojekyll _site/
+          cp index.html player.js stream-fetch.js canvas-renderer.js .nojekyll _site/
           cp -r vendor _site/
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -50,6 +50,7 @@ jobs:
       - name: Verify published video playback and seeking
         env:
           PLAYER_URL: ${{ steps.deployment.outputs.page_url }}
+          STOCK_CEF: '1'
         run: node tools/smoke-playback.cjs
       - uses: actions/upload-artifact@v4
         if: always()
