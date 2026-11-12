@@ -3,7 +3,7 @@ name: Publish TV player
 on:
   push:
     branches: [main]
-    paths: [index.html, player.js, catalog.json, .nojekyll, '.github/workflows/deploy-pages.yml']
+    paths: [index.html, player.js, player.spec.js, catalog.json, .nojekyll, 'tools/smoke-playback.cjs', '.github/workflows/deploy-pages.yml']
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -31,6 +31,8 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.sha }}
       - uses: actions/configure-pages@v5
+      - name: Check player controls
+        run: node player.spec.js
       - name: Prepare static site
         run: |
           mkdir _site
@@ -40,3 +42,18 @@ jobs:
           path: _site
       - uses: actions/deploy-pages@v4
         id: deployment
+      - name: Install playback test browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify published video playback and seeking
+        env:
+          PLAYER_URL: ${{ steps.deployment.outputs.page_url }}
+        run: node tools/smoke-playback.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playback-results
+          path: playback-results/
+          if-no-files-found: ignore
+          retention-days: 7

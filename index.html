@@ -6,17 +6,20 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>AUTONOMOUS — TV player</title>
   <style>
-    html, body, #screen, iframe { width: 100%; height: 100%; margin: 0; border: 0; overflow: hidden; background: #000; }
+    html, body, #screen, video { width: 100%; height: 100%; margin: 0; border: 0; overflow: hidden; background: #000; }
+    video { object-fit: contain; }
     body { color: #eee; font: 16px/1.5 Arial, sans-serif; }
-    #message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 32px; box-sizing: border-box; text-align: center; background: #101317; }
-    #message[hidden], #diagnostics[hidden] { display: none; }
+    #message { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; padding: 32px; box-sizing: border-box; text-align: center; white-space: pre-line; background: #101317; }
+    #message[hidden], #diagnostics[hidden], #resume[hidden] { display: none; }
+    #resume { position: absolute; left: 50%; bottom: 15%; transform: translateX(-50%); padding: 12px 24px; cursor: pointer; }
     #diagnostics { position: absolute; top: 0; left: 0; max-width: 100%; padding: 5px 10px; background: #000b; color: #b9e6c7; font: 12px monospace; pointer-events: none; }
   </style>
 </head>
 <body>
   <div id="screen"></div>
   <div id="message" role="status">Загрузка видеоплеера…</div>
+  <button id="resume" type="button" hidden>Включить видео</button>
   <div id="diagnostics" hidden></div>
-  <script src="player.js?v=20261112-1"></script>
+  <script src="player.js?v=20261112-2"></script>
 </body>
 </html>
