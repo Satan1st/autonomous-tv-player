@@ -1,0 +1,120 @@
+name: Convert TV media to WebM
+
+on:
+  workflow_dispatch:
+    inputs:
+      selection:
+        description: 'demo, all, or a Rutube ID listed in sources.json'
+        required: true
+        default: demo
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: television-conversion
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - id: plan
+        env:
+          SELECTION: ${{ inputs.selection }}
+        run: python tools/convert_media.py plan --selection "$SELECTION"
+      - name: Prepare media release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/convert_media.py ensure-release
+
+  convert:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+      - name: Convert and verify codecs
+        env:
+          VIDEO_ID: ${{ matrix.id }}
+        run: python tools/convert_media.py convert --id "$VIDEO_ID"
+      - name: Upload verified video
+        env:
+          VIDEO_ID: ${{ matrix.id }}
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/convert_media.py upload --id "$VIDEO_ID"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manifest-${{ matrix.id }}
+          path: out/*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-catalog:
+    needs: convert
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      commit: ${{ steps.commit.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: manifest-*
+          merge-multiple: true
+          path: manifests
+      - name: Merge completed conversions
+        run: python tools/convert_media.py merge --output manifests
+      - name: Commit catalog
+        id: commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add catalog.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publish verified WebM media catalog'
+            git pull --rebase origin main
+            git push origin main
+          fi
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: publish-catalog
+    if: ${{ !cancelled() && needs.publish-catalog.result == 'success' }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml
+    with:
+      ref: ${{ needs.publish-catalog.outputs.commit }}
