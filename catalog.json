@@ -14,6 +14,34 @@
       "videoCodec": "vp8",
       "audioCodec": "vorbis",
       "url": "https://github.com/Satan1st/autonomous-tv-player/releases/download/media-webm-v1/00000000000000000000000000000000.vp8-vorbis.27d6a4fa90c1.webm"
+    },
+    "51c61871c3db1ef2624b2e4cd0aae155": {
+      "id": "51c61871c3db1ef2624b2e4cd0aae155",
+      "title": "Сталкер",
+      "file": "51c61871c3db1ef2624b2e4cd0aae155.vp8-vorbis.aab11137bc6e.webm",
+      "sha256": "aab11137bc6e3500967a847c66f7bea7acf195778551d4a3bb262ec0eefdaecf",
+      "bytes": 300566969,
+      "duration": 9722.406,
+      "width": 480,
+      "height": 352,
+      "mime": "video/webm; codecs=\"vp8,vorbis\"",
+      "videoCodec": "vp8",
+      "audioCodec": "vorbis",
+      "url": "https://github.com/Satan1st/autonomous-tv-player/releases/download/media-webm-v1/51c61871c3db1ef2624b2e4cd0aae155.vp8-vorbis.aab11137bc6e.webm"
+    },
+    "f7b6cb8cdec08dfbda31fbcca2281288": {
+      "id": "f7b6cb8cdec08dfbda31fbcca2281288",
+      "title": "Хоттабыч (2006)",
+      "file": "f7b6cb8cdec08dfbda31fbcca2281288.vp8-vorbis.b5b12fa103d4.webm",
+      "sha256": "b5b12fa103d4db654116d1142750de94df20363caf834dc80eddf00514f4b8e9",
+      "bytes": 166026080,
+      "duration": 5493.592,
+      "width": 480,
+      "height": 270,
+      "mime": "video/webm; codecs=\"vp8,vorbis\"",
+      "videoCodec": "vp8",
+      "audioCodec": "vorbis",
+      "url": "https://github.com/Satan1st/autonomous-tv-player/releases/download/media-webm-v1/f7b6cb8cdec08dfbda31fbcca2281288.vp8-vorbis.b5b12fa103d4.webm"
     }
   }
 }
