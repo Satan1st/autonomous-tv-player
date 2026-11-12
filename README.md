@@ -28,6 +28,8 @@ The browser smoke check injects the same native transport interface, streams act
 
 On 2026-11-12, all ten cassette sources passed this check on **Chromium 86.0.4217.0**: [run 43224547461](https://github.com/Satan1st/autonomous-tv-player/actions/runs/43224547461). Each test streamed at most 4.1 MB of fragments, including a seek to 70% of the film; no film file was saved. This verifies the decoder in a matching Chromium generation, not the live GMod DHTML/native-HTTP integration or the television's in-world rendering.
 
+After the in-game log exposed libmedia's WebGL-dependent MSE fallback, the Canvas 2D adapter passed all ten sources on **Chromium 86 with WebGL disabled and native media decoding blocked**: [run 43229026796](https://github.com/Satan1st/autonomous-tv-player/actions/runs/43229026796). The check asserts `renderer=canvas2d`, `nativeMedia=false` and zero attempts to create a native media source buffer.
+
 ## Removed approach
 
 The earlier Actions-based whole-film WebM converter was cancelled and removed after the requirement was clarified. Release `media-webm-v1` and its ten generated assets (nine films and a synthetic demo) were deleted. GitHub hosts software only.
