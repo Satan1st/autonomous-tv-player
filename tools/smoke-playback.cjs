@@ -5,6 +5,7 @@ const {chromium} = require('playwright');
 (async function () {
     const base = process.env.PLAYER_URL || 'https://satan1st.github.io/autonomous-tv-player/';
     const browser = await chromium.launch(process.env.CHROMIUM_EXECUTABLE ? {executablePath: process.env.CHROMIUM_EXECUTABLE} : {});
+    if (process.env.EXPECTED_CHROMIUM_MAJOR) assert.equal(browser.version().split('.')[0], process.env.EXPECTED_CHROMIUM_MAJOR);
     const context = await browser.newContext();
     const sources = JSON.parse(fs.readFileSync('sources.json', 'utf8'));
     const ids = process.env.VIDEO_IDS === 'all' ? Object.keys(sources)
