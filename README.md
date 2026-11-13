@@ -12,6 +12,10 @@ The television's TAB → right-click menu offers shared pause/resume and a 0–2
 
 Service **8** also offers a saved per-player Rutube / YouTube choice in that menu and in audio settings. YouTube uses the original Media Player iframe page and each tape's `youtubeID`; switching preserves the common clock and pause while reloading only that viewer's page. Its native final volume is capped at 1. Rutube remains the default and continues to use this software player.
 
+Playlist tapes are managed by the game server. The TV menu offers previous/next episode and a scrollable episode selector shared by all viewers. Switching starts the selected video from the beginning while preserving pause and volume; completion advances to the next episode and stops at the end of the list. Each episode opens through the same single-video player interface. The saved per-viewer source applies to each episode's optional YouTube mirror, with explicit Rutube fallback when none exists.
+
+The catalogue now includes ten additional individual recordings and all 53 episodes of [Men in Black: The Animated Series](https://rutube.ru/plst/919116/), for 73 video entries total. The playlist order and individual durations are authored in the schema's `videotape_mib` item; its `tools/import_rutube_playlist.py` imports every API page for future playlist updates. On the 2026-11-13 test connection, Rutube blocked eight of the new individual recordings and 48 playlist episodes with region/VPN/rights restrictions despite public metadata. The available new streams were DMB, Evangelion part 1 and MIB episodes 2×01, 2×06, 2×12, 2×13, 3×09. Availability is viewer-dependent.
+
 Rutube does not grant cross-origin JavaScript access to its API/CDN from this Pages origin. The service provides a restricted, read-only **client-side** `DHTML:AddFunction` HTTP transport for HTTPS Rutube/CDN URLs. Fragments travel directly from Rutube to that player's GMod process and into the decoder's RAM. The game server handles only ordinary cassette metadata and shared playback state.
 
 This transport is required: opening the page in an ordinary standalone browser does not provide the native game bridge. No client codec package or browser patch is installed.
@@ -30,7 +34,7 @@ The 2026-11-13 local failover check passed on Chrome 157 with WebGL/native codec
 
 On 2026-11-13, the local smoke check passed on Chrome 157 with native decoding/WebGL disabled, **5-second segment delays**, 300 ms game sync and an injected HTTP 502 on the first segment: one startup seek, 76 additional steady-playback frames, pause/seek/resume and 1.46 MB transferred. This run verifies the fault-recovery changes in the browser adapter; the live GMod transport still needs verification on affected clients. Reproduce with `STOCK_CEF=1 SEGMENT_DELAY_MS=5000 FAIL_FIRST_SEGMENT=1 node tools/smoke-playback.cjs` and `PLAYER_URL` pointing to the updated page.
 
-All ten sources passed the strengthened **Chromium 86** check with 300 ms game updates, 350 ms segment delays, WebGL disabled and native decoding blocked: [run 43235886680](https://github.com/Satan1st/autonomous-tv-player/actions/runs/43235886680). Every source performed one initial seek and rendered 70–92 further frames during the steady-playback check before pause/seek/resume.
+The original ten sources passed the strengthened **Chromium 86** check with 300 ms game updates, 350 ms segment delays, WebGL disabled and native decoding blocked: [run 43235886680](https://github.com/Satan1st/autonomous-tv-player/actions/runs/43235886680). Every source performed one initial seek and rendered 70–92 further frames during the steady-playback check before pause/seek/resume.
 
 ## Verification
 
@@ -41,6 +45,8 @@ node player.spec.js
 ```
 
 The browser smoke check injects the same native transport interface, streams actual Rutube fragments into RAM, and checks software video/audio rendering, pause, seek, resume and bounded transfer size. Results identify the browser used. Game CEF rendering/performance must also be playtested; passing modern Chromium alone is not proof of stock GMod compatibility.
+
+All seven available new streams passed this check in Chrome 157.0.8103.51, including a paused start and audio gains 1.6/0.35/0, with at most 3,719,183 bytes transferred per recording. A subsequent API snapshot blocked MIB 2×01 and 2×13 too, so availability fluctuated even during verification. The schema passed 149 Media Player controls/playlist checks, 92 audio/video XP checks and its YouTube synchronization check.
 
 On 2026-11-12, all ten cassette sources passed this check on **Chromium 86.0.4217.0**: [run 43224547461](https://github.com/Satan1st/autonomous-tv-player/actions/runs/43224547461). Each test streamed at most 4.1 MB of fragments, including a seek to 70% of the film; no film file was saved. This verifies the decoder in a matching Chromium generation, not the live GMod DHTML/native-HTTP integration or the television's in-world rendering.
 

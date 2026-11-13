@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       selection:
-        description: 'all or a cassette ID'
+        description: 'all or comma-separated Rutube video IDs'
         type: string
         required: true
         default: f7b6cb8cdec08dfbda31fbcca2281288
