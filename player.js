@@ -9,7 +9,8 @@
     var paused = params.get('paused') === '1', volume = number(params.get('volume'), 0, 1);
     var target = number(params.get('t'), 0, 43200), targetAt = Date.now(), startedAt = Date.now();
     var current = 0, previous = 0, duration = 0, state = 'loading', seekPending = true, streamURL = null;
-    var initiallySynced = false, seekCount = 0;
+    var initiallySynced = false, seekCount = 0, forceSeek = false, lastSeekAt = 0, lastSeekFrames = 0;
+    var restartCount = 0, restartTimer, loading = false, lastProgressAt = Date.now(), decodedFrames = 0;
     diagnostics.hidden = params.get('debug') !== '1';
 
     function number(value, fallback, maximum) {
@@ -18,9 +19,11 @@
     }
     function report(next, detail) {
         state = next;
+        lastProgressAt = Date.now();
         diagnostics.textContent = next + (detail ? ': ' + detail : '');
-        console.log('IXTV:' + JSON.stringify({version: 5, state: next, detail: detail || '', decoder: 'wasm-h264-aac',
+        console.log('IXTV:' + JSON.stringify({version: 6, state: next, detail: detail || '', decoder: 'wasm-h264-aac',
             ready: ready, busy: busy, seekCount: seekCount,
+            transport: window.ixStreamStatus ? window.ixStreamStatus() : null,
             renderer: window.ixCanvasVideo ? window.ixCanvasVideo.renderer : null,
             capabilities: window.ixCanvasVideo ? window.ixCanvasVideo.capabilities : null}));
     }
@@ -47,10 +50,16 @@
                 if (seekPending) {
                     seekPending = false;
                     var time = Math.max(0, Math.min(desiredTime(), duration - 0.1));
-                    if (!initiallySynced || Math.abs(current - time) > 3) {
+                    var frames = Number(player.getStats().videoFrameRenderCount || 0);
+                    var correctDrift = played && Date.now() - lastSeekAt > 15000 && frames > lastSeekFrames + 15;
+                    if (!initiallySynced || forceSeek || (correctDrift && Math.abs(current - time) > 3)) {
+                        forceSeek = false;
                         seekCount++;
                         await player.seek(BigInt(Math.floor(time * 1000)));
+                        if (disposed) return;
                         initiallySynced = true;
+                        lastSeekAt = Date.now();
+                        lastSeekFrames = Number(player.getStats().videoFrameRenderCount || 0);
                         current = previous = time;
                     }
                 }
@@ -71,13 +80,16 @@
             paused = false; wakeAudio(); apply();
         },
         sync: function (value) {
-            target = number(value, 0, 43200); targetAt = Date.now(); seekPending = true; apply();
+            var next = number(value, 0, 43200);
+            forceSeek = forceSeek || Math.abs(next - desiredTime()) > 3;
+            target = next; targetAt = Date.now(); seekPending = true; apply();
         },
         status: function () {
             var stats = {};
             try { if (player) stats = player.getStats() || {}; } catch (_) {}
             return {state: state, ready: ready, played: played, paused: paused, advertising: false, busy: busy,
                 initiallySynced: initiallySynced, seekCount: seekCount, visibility: document.visibilityState,
+                restarts: restartCount, transport: window.ixStreamStatus ? window.ixStreamStatus() : null,
                 time: current, duration: duration, source: streamURL, decoder: 'wasm-h264-aac',
                 renderer: window.ixCanvasVideo ? window.ixCanvasVideo.renderer : null, nativeMedia: !!(player && player.useMSE),
                 videoFrames: Number(stats.videoFrameRenderCount || 0), audioFrames: Number(stats.audioFrameRenderCount || 0),
@@ -113,10 +125,13 @@
         if (!/^[a-f0-9]{32}$/.test(id)) { error('INVALID_VIDEO', 'Не указан корректный ID кассеты.'); return; }
         if (!window.AVPlayer || !window.WebAssembly) { error('DECODER_UNAVAILABLE', 'Не загрузился программный декодер.'); return; }
         if (!window.ixCanvasVideo || !window.ixCanvasVideo.installed) { error('RENDERER_UNAVAILABLE', 'Не загрузился программный вывод Canvas 2D.'); return; }
+        loading = true;
         try {
             report('resolving-stream');
             var options = await get('https://rutube.ru/api/play/options/' + id + '/?format=json', true);
-            if (!options.acl_access || !options.acl_access.allowed || options.drm_token) throw new Error('Источник не предоставляет открытый поток');
+            if (!options.acl_access || !options.acl_access.allowed || options.drm_token) {
+                error('SOURCE_ACCESS', 'Источник не предоставляет открытый поток.'); return;
+            }
             var master = options.video_balancer && (options.video_balancer.m3u8 || options.video_balancer.default);
             if (!master) throw new Error('Rutube не вернул HLS-поток');
             streamURL = selectVariant(await get(master, false), master);
@@ -138,18 +153,31 @@
             });
             player.setVolume(0);
             player.on('time', function (pts) { current = Number(pts) / 1000; });
-            player.on('error', function (reason) { error('STREAM_DECODE', String(reason.message || reason)); });
+            player.on('error', function (reason) {
+                if (!loading && !disposed) error('STREAM_DECODE', String(reason.message || reason));
+            });
             player.on('ended', function () { active = false; report('ended'); });
             report('loading-stream');
             await player.load(streamURL, {isLive: false, ext: 'm3u8'});
             report('starting-decoder');
             await player.play({audio: true, video: true, subtitle: false});
+            wakeAudio();
             active = ready = true;
             report('synchronizing');
             await apply();
         } catch (reason) {
-            error('STREAM_UNAVAILABLE', 'Не удалось открыть поток Rutube: ' + String(reason.message || reason));
-        }
+            if (disposed) return;
+            ready = active = false;
+            if (player) { try { await player.destroy(); } catch (_) {} player = null; }
+            if (disposed) return;
+            if (restartCount < 2) {
+                restartCount++;
+                initiallySynced = false; seekPending = true;
+                startedAt = Date.now();
+                report('retrying-stream', String(reason.message || reason));
+                restartTimer = window.setTimeout(start, 1500 * restartCount);
+            } else error('STREAM_UNAVAILABLE', 'Не удалось открыть поток Rutube: ' + String(reason.message || reason));
+        } finally { loading = false; }
     }
     var timer = window.setInterval(function () {
         if (disposed) return;
@@ -157,6 +185,10 @@
         resume.hidden = !(audio && audio.state === 'suspended');
         if (ready && !busy) {
             var stats = player.getStats();
+            if (Number(stats.videoFrameDecodeCount || 0) > decodedFrames) {
+                decodedFrames = Number(stats.videoFrameDecodeCount);
+                lastProgressAt = Date.now();
+            }
             if (!paused && active && Number(stats.videoFrameRenderCount) > 1 && current > previous + 0.02) {
                 message.hidden = true;
                 if (!played) { played = true; console.log('READY:rutube'); }
@@ -165,7 +197,9 @@
             if (paused && Number(stats.videoFrameRenderCount) > 0) message.hidden = true;
             previous = current;
         }
-        if (!played && !paused && state !== 'error' && Date.now() - startedAt > 60000) {
+        var transport = window.ixStreamStatus && window.ixStreamStatus();
+        var progress = Math.max(lastProgressAt, transport ? transport.lastProgress : 0);
+        if (!played && !paused && state !== 'error' && (Date.now() - progress > 120000 || Date.now() - startedAt > 240000)) {
             error('PLAYBACK_TIMEOUT', 'Поток не запустился. Проверьте доступ к Rutube и наличие обновлённого игрового сервиса.');
         }
     }, 250);
@@ -179,6 +213,7 @@
     });
     window.addEventListener('pagehide', function () {
         disposed = true; window.clearInterval(timer);
+        window.clearTimeout(restartTimer);
         if (player) player.destroy().catch(function () {});
     });
     var started = false;
