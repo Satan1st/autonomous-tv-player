@@ -16,7 +16,7 @@ const {chromium} = require('playwright');
         for (const id of ids) {
             const page = await context.newPage();
             const signals = [], failures = [], transfers = [];
-            let injectedFailure = false;
+            let injectedFailure = false, blockedPlaylistHost = null, blockedPlaylistRequests = 0;
             const segmentDelay = Number(process.env.SEGMENT_DELAY_MS || (process.env.STOCK_CEF === '1' ? 350 : 0));
             page.on('console', message => signals.push(message.text()));
             page.on('pageerror', error => failures.push(error.message));
@@ -38,6 +38,14 @@ const {chromium} = require('playwright');
                 assert(address.protocol === 'https:' && /(^|\.)(rutube\.ru|rtbcdn\.ru)$/.test(address.hostname));
                 assert(['GET', 'HEAD'].includes(method));
                 try {
+                    if (process.env.FAIL_PLAYLIST_HOST === '1' && address.pathname.includes('/hls-vod/') && address.pathname.endsWith('.m3u8')) {
+                        if (!blockedPlaylistHost) blockedPlaylistHost = address.hostname;
+                        if (address.hostname === blockedPlaylistHost) {
+                            blockedPlaylistRequests++;
+                            await page.evaluate(packet => window.ixStreamReply(packet), {id: requestID, status: 403, error: 'Injected unavailable CDN'});
+                            return;
+                        }
+                    }
                     if (process.env.FAIL_FIRST_SEGMENT === '1' && !injectedFailure && address.pathname.endsWith('.ts')) {
                         injectedFailure = true;
                         await page.evaluate(packet => window.ixStreamReply(packet), {id: requestID, status: 502, error: 'Injected connection reset'});
@@ -107,6 +115,11 @@ const {chromium} = require('playwright');
                 if (process.env.FAIL_FIRST_SEGMENT === '1') {
                     assert(injectedFailure && status.transport.retries > 0, 'playback must recover from the injected fragment failure');
                 }
+                if (process.env.FAIL_PLAYLIST_HOST === '1') {
+                    assert(blockedPlaylistHost && status.restarts > 0, 'playback must recover from a persistently unavailable playlist CDN');
+                    assert.notEqual(new URL(status.source).hostname, blockedPlaylistHost);
+                    assert.equal(blockedPlaylistRequests, 1, 'libmedia must not multiply the transport retry budget on a permanent HTTP failure');
+                }
                 if (process.env.STOCK_CEF === '1') {
                     const capabilities = await page.evaluate(() => ({webgl: window.ixCanvasVideo.capabilities.webgl, attempts: window.nativeCodecAttempts}));
                     assert.equal(capabilities.webgl, false);
@@ -116,7 +129,7 @@ const {chromium} = require('playwright');
                 const bytes = transfers.reduce((sum, transfer) => sum + transfer.bytes, 0);
                 assert(bytes < 20 * 1024 * 1024, 'playback must stream bounded fragments rather than an entire movie');
                 results.push({id, title: sources[id].title, browser: browser.version(), gameSyncIntervalMs: 300,
-                    segmentDelayMs: segmentDelay, injectedFailure,
+                    segmentDelayMs: segmentDelay, injectedFailure, blockedPlaylistHost, blockedPlaylistRequests,
                     startupSeekCount: startup.seekCount, steadyVideoFrames: startup.videoFrames - first.videoFrames,
                     status, bytes, requests: transfers.length});
                 console.log(JSON.stringify(results.at(-1)));

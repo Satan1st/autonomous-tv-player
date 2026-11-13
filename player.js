@@ -11,6 +11,7 @@
     var current = 0, previous = 0, duration = 0, state = 'loading', seekPending = true, streamURL = null;
     var initiallySynced = false, seekCount = 0, forceSeek = false, lastSeekAt = 0, lastSeekFrames = 0;
     var restartCount = 0, restartTimer, loading = false, lastProgressAt = Date.now(), decodedFrames = 0;
+    var failedSources = {}, errorDetail = null;
     diagnostics.hidden = params.get('debug') !== '1';
 
     function number(value, fallback, maximum) {
@@ -21,13 +22,16 @@
         state = next;
         lastProgressAt = Date.now();
         diagnostics.textContent = next + (detail ? ': ' + detail : '');
-        console.log('IXTV:' + JSON.stringify({version: 6, state: next, detail: detail || '', decoder: 'wasm-h264-aac',
-            ready: ready, busy: busy, seekCount: seekCount,
+        console.log('IXTV:' + JSON.stringify({version: 7, video: id, state: next, detail: detail || '', decoder: 'wasm-h264-aac',
+            ready: ready, busy: busy, seekCount: seekCount, restarts: restartCount, error: errorDetail,
+            sourceHost: streamURL ? new URL(streamURL).hostname : null,
             transport: window.ixStreamStatus ? window.ixStreamStatus() : null,
             renderer: window.ixCanvasVideo ? window.ixCanvasVideo.renderer : null,
             capabilities: window.ixCanvasVideo ? window.ixCanvasVideo.capabilities : null}));
     }
-    function error(code, reason) {
+    function describe(reason) { return String(reason && reason.message || reason || 'Неизвестная ошибка'); }
+    function error(code, reason, detail) {
+        errorDetail = {code: code, reason: detail || reason};
         message.textContent = reason + '\nКод: ' + code;
         message.hidden = false;
         report('error', code);
@@ -67,7 +71,7 @@
                 else if (!paused && !active) { await player.play(); active = true; }
                 player.setVolume(volume);
             }
-        } catch (reason) { error('STREAM_CONTROL', String(reason.message || reason)); }
+        } catch (reason) { error('STREAM_CONTROL', describe(reason)); }
         finally { busy = false; }
     }
     window.ixRutube = {
@@ -89,7 +93,7 @@
             try { if (player) stats = player.getStats() || {}; } catch (_) {}
             return {state: state, ready: ready, played: played, paused: paused, advertising: false, busy: busy,
                 initiallySynced: initiallySynced, seekCount: seekCount, visibility: document.visibilityState,
-                restarts: restartCount, transport: window.ixStreamStatus ? window.ixStreamStatus() : null,
+                restarts: restartCount, error: errorDetail, transport: window.ixStreamStatus ? window.ixStreamStatus() : null,
                 time: current, duration: duration, source: streamURL, decoder: 'wasm-h264-aac',
                 renderer: window.ixCanvasVideo ? window.ixCanvasVideo.renderer : null, nativeMedia: !!(player && player.useMSE),
                 videoFrames: Number(stats.videoFrameRenderCount || 0), audioFrames: Number(stats.audioFrameRenderCount || 0),
@@ -113,19 +117,24 @@
                 var match = /RESOLUTION=\d+x(\d+)/.exec(line);
                 height = match ? Number(match[1]) : null;
             } else if (line && line[0] !== '#' && height !== null) {
-                variants.push({height: height, url: new URL(line, address).href}); height = null;
+                var url = new URL(line, address);
+                variants.push({height: height, url: url.href, key: url.hostname + ':' + height}); height = null;
             }
         });
         if (!variants.length) throw new Error('Нет вариантов HLS-потока');
         variants.sort(function (a, b) { return a.height - b.height; });
         var suitable = variants.filter(function (entry) { return entry.height <= 240; });
-        return (suitable.length ? suitable[suitable.length - 1] : variants[0]).url;
+        var candidates = suitable.length ? suitable.reverse()
+            : variants.filter(function (entry) { return entry.height === variants[0].height; });
+        return candidates.filter(function (entry) { return !failedSources[entry.key]; })[0] || candidates[0];
     }
     async function start() {
         if (!/^[a-f0-9]{32}$/.test(id)) { error('INVALID_VIDEO', 'Не указан корректный ID кассеты.'); return; }
         if (!window.AVPlayer || !window.WebAssembly) { error('DECODER_UNAVAILABLE', 'Не загрузился программный декодер.'); return; }
         if (!window.ixCanvasVideo || !window.ixCanvasVideo.installed) { error('RENDERER_UNAVAILABLE', 'Не загрузился программный вывод Canvas 2D.'); return; }
         loading = true;
+        var selected;
+        streamURL = null;
         try {
             report('resolving-stream');
             var options = await get('https://rutube.ru/api/play/options/' + id + '/?format=json', true);
@@ -134,7 +143,8 @@
             }
             var master = options.video_balancer && (options.video_balancer.m3u8 || options.video_balancer.default);
             if (!master) throw new Error('Rutube не вернул HLS-поток');
-            streamURL = selectVariant(await get(master, false), master);
+            selected = selectVariant(await get(master, false), master);
+            streamURL = selected.url;
             duration = number(Number(options.duration) / 1000, 0, 43200);
             if (!duration) throw new Error('Не определена длительность записи');
             if (disposed) return;
@@ -154,11 +164,12 @@
             player.setVolume(0);
             player.on('time', function (pts) { current = Number(pts) / 1000; });
             player.on('error', function (reason) {
-                if (!loading && !disposed) error('STREAM_DECODE', String(reason.message || reason));
+                if (!loading && !disposed) error('STREAM_DECODE', describe(reason));
             });
             player.on('ended', function () { active = false; report('ended'); });
             report('loading-stream');
-            await player.load(streamURL, {isLive: false, ext: 'm3u8'});
+            // stream-fetch owns retries; libmedia otherwise adds 20 attempts before CDN failover.
+            await player.load(streamURL, {isLive: false, ext: 'm3u8', ioLoaderOptions: {retryCount: 0}});
             report('starting-decoder');
             await player.play({audio: true, video: true, subtitle: false});
             wakeAudio();
@@ -167,6 +178,7 @@
             await apply();
         } catch (reason) {
             if (disposed) return;
+            if (selected) failedSources[selected.key] = true;
             ready = active = false;
             if (player) { try { await player.destroy(); } catch (_) {} player = null; }
             if (disposed) return;
@@ -174,9 +186,14 @@
                 restartCount++;
                 initiallySynced = false; seekPending = true;
                 startedAt = Date.now();
-                report('retrying-stream', String(reason.message || reason));
+                report('retrying-stream', describe(reason));
                 restartTimer = window.setTimeout(start, 1500 * restartCount);
-            } else error('STREAM_UNAVAILABLE', 'Не удалось открыть поток Rutube: ' + String(reason.message || reason));
+            } else {
+                var transport = window.ixStreamStatus && window.ixStreamStatus();
+                error('STREAM_UNAVAILABLE', 'Не удалось открыть поток Rutube.\n'
+                    + (transport && transport.lastError ? 'Последняя ошибка сети: ' + transport.lastError : 'Подробности — в GarrysMod/chromium.log.'),
+                    describe(reason));
+            }
         } finally { loading = false; }
     }
     var timer = window.setInterval(function () {

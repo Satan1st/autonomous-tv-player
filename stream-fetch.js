@@ -3,10 +3,10 @@
     window.CHEAP_DISABLE_THREAD = true;
     var original = window.fetch.bind(window);
     var requests = {}, sequence = 0;
-    var status = {pending: 0, retries: 0, bytes: 0, lastProgress: Date.now(), lastError: null};
+    var status = {pending: 0, retries: 0, bytes: 0, lastProgress: Date.now(), lastError: null, lastFailure: null};
     window.ixStreamStatus = function () {
         return {pending: status.pending, retries: status.retries, bytes: status.bytes,
-            lastProgress: status.lastProgress, lastError: status.lastError};
+            lastProgress: status.lastProgress, lastError: status.lastError, lastFailure: status.lastFailure};
     };
 
     function mediaURL(address) {
@@ -14,9 +14,17 @@
         return url.protocol === 'https:' && !url.username && !url.password && !url.port
             && /(^|\.)(rutube\.ru|rtbcdn\.ru)$/.test(url.hostname);
     }
+    function failure(request, reason, code) {
+        var url = new URL(request.url);
+        var detail = String(reason && reason.message || reason);
+        status.lastError = url.hostname + ': ' + detail;
+        status.lastFailure = {host: url.hostname, resource: url.pathname.indexOf('/api/') === 0 ? 'api'
+            : /\.m3u8$/i.test(url.pathname) ? 'playlist' : 'fragment', status: code || 0, reason: detail, at: Date.now()};
+    }
     function finish(id, error, response) {
         var request = requests[id];
         if (!request) return;
+        if (error && error.name !== 'AbortError') failure(request, error);
         delete requests[id];
         status.pending--;
         window.clearTimeout(request.timeout);
@@ -41,7 +49,7 @@
             if (response.ok) {
                 status.bytes += bytes.length;
                 status.lastProgress = Date.now();
-            } else status.lastError = new URL(request.url).hostname + ': HTTP ' + packet.status + (packet.error ? ' (' + packet.error + ')' : '');
+            } else failure(request, 'HTTP ' + packet.status + (packet.error ? ' (' + packet.error + ')' : ''), packet.status);
             finish(packet.id, null, response);
         } catch (error) { finish(packet.id, error); }
     };
@@ -56,7 +64,6 @@
             request.abort = function () { cancel(); finish(id, new DOMException('Media request cancelled', 'AbortError')); };
             request.timeout = window.setTimeout(function () {
                 cancel();
-                status.lastError = new URL(url).hostname + ': timeout';
                 finish(id, new Error('Media request timed out'));
             }, 45000);
             if (signal) {

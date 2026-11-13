@@ -4,9 +4,10 @@ const vm = require('node:vm');
 const source = fs.readFileSync('player.js', 'utf8');
 const id = 'f7b6cb8cdec08dfbda31fbcca2281288';
 
-async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true, syncDuringSeek = false, failures = 0) {
+async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true, syncDuringSeek = false, failures = 0, manifest) {
     const logs = [], events = {}, commands = [], elements = {message: {}, diagnostics: {}, resume: {addEventListener() {}}, screen: {}};
-    let clock = 1000, timer, resolveOptions;
+    const loads = [], transport = {lastError: null};
+    let clock = 1000, timer, resolveOptions, resolutions = 0;
     const timeouts = [];
     const options = new Promise(resolve => { resolveOptions = resolve; });
     const stats = {videoFrameRenderCount: 0, audioFrameRenderCount: 0, videocodec: 'h264', audiocodec: 'aac'};
@@ -15,7 +16,11 @@ async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true, syncDuri
         constructor(config) { this.config = config; Player.instance = this; }
         on(name, callback) { events[name] = callback; }
         setVolume(value) { this.volume = value; }
-        async load(url) { this.url = url; if (failures-- > 0) throw new Error('fetch slice error'); }
+        async load(url) {
+            this.url = url; loads.push(url);
+            if (typeof failures === 'function') await failures(url);
+            else if (failures-- > 0) throw new Error('fetch slice error');
+        }
         async play() { commands.push('play'); }
         async pause() { commands.push('pause'); }
         async seek(time) {
@@ -34,13 +39,15 @@ async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true, syncDuri
     const context = {AVPlayer: Player, URL, URLSearchParams, BigInt, Date: {now: () => clock},
         console: {log: line => logs.push(line)}, document: {getElementById: key => elements[key]},
         window: {AVPlayer: Player, WebAssembly: {}, ixCanvasVideo: {installed: true, renderer: 'canvas2d'}, ixStreamReady: nativeReady, location: {hash}, addEventListener() {},
+            ixStreamStatus: () => transport,
             setInterval: callback => { timer = callback; }, clearInterval() {},
             setTimeout: callback => { timeouts.push(callback); return timeouts.length; }, clearTimeout() {},
             fetch: async url => url.includes('/api/') ? {ok: true, json: () => options}
-                : {ok: true, text: async () => '#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=426x240\nhttps://river.rutube.ru/movie.m3u8\n#EXT-X-STREAM-INF:RESOLUTION=1280x720\nhttps://river.rutube.ru/hd.m3u8'} }};
+                : {ok: true, text: async () => typeof manifest === 'function' ? manifest(++resolutions) : manifest
+                    || '#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=426x240\nhttps://river.rutube.ru/movie.m3u8\n#EXT-X-STREAM-INF:RESOLUTION=1280x720\nhttps://river.rutube.ru/hd.m3u8'} }};
     vm.runInNewContext(source, context);
     async function flush() { for (let i = 0; i < 30; i++) await Promise.resolve(); }
-    return {logs, commands, elements, bridge: context.window.ixRutube, flush, get player() { return Player.instance; },
+    return {logs, commands, elements, loads, transport, bridge: context.window.ixRutube, flush, get player() { return Player.instance; },
         connect() { context.window.ixStreamReady = true; context.window.ixStreamStart(); },
         async retry() { assert(timeouts.length); timeouts.shift()(); await flush(); },
         update() { timer(); },
@@ -95,9 +102,40 @@ async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true, syncDuri
     await test.retry();
     assert(test.bridge.status().ready, 'failed initial fragment re-resolves the stream and retries loading');
     assert.equal(test.commands.filter(command => command === 'destroy').length, 1);
-    test = await fixture(undefined, true, false, 10); await test.load();
+    const mirrors = attempt => '#EXTM3U\n'
+        + '#EXT-X-STREAM-INF:RESOLUTION=256x144\nhttps://primary.rutube.ru/low.m3u8?token=' + attempt + '\n'
+        + '#EXT-X-STREAM-INF:RESOLUTION=426x240\nhttps://backup.rtbcdn.ru/movie.m3u8?token=' + attempt + '\n'
+        + '#EXT-X-STREAM-INF:RESOLUTION=426x240\nhttps://primary.rutube.ru/movie.m3u8?token=' + attempt + '\n'
+        + '#EXT-X-STREAM-INF:RESOLUTION=1280x720\nhttps://primary.rutube.ru/hd.m3u8?token=' + attempt;
+    test = await fixture(undefined, true, false, url => {
+        if (new URL(url).hostname === 'primary.rutube.ru') throw new Error('fetch slice error');
+    }, mirrors);
+    await test.load(); await test.retry();
+    assert.deepEqual(test.loads, ['https://primary.rutube.ru/movie.m3u8?token=1', 'https://backup.rtbcdn.ru/movie.m3u8?token=2'],
+        'a persistently unavailable CDN switches to the advertised mirror even after signatures refresh');
+    assert(test.bridge.status().ready);
+    test = await fixture(undefined, true, false, url => {
+        if (!url.includes('/low.m3u8')) throw new Error('fetch slice error');
+    }, mirrors);
+    await test.load(); await test.retry(); await test.retry();
+    assert.equal(test.player.url, 'https://primary.rutube.ru/low.m3u8?token=3', 'after same-quality mirrors fail, use a lower rendition');
+    assert(test.bridge.status().ready);
+    test = await fixture(undefined, true, false, 1, '#EXTM3U\n'
+        + '#EXT-X-STREAM-INF:RESOLUTION=1280x720\nhttps://primary.rutube.ru/hd.m3u8\n'
+        + '#EXT-X-STREAM-INF:RESOLUTION=640x360\nhttps://primary.rutube.ru/sd.m3u8\n'
+        + '#EXT-X-STREAM-INF:RESOLUTION=640x360\nhttps://backup.rtbcdn.ru/sd.m3u8');
+    await test.load(); await test.retry();
+    assert.equal(test.player.url, 'https://backup.rtbcdn.ru/sd.m3u8', 'sources without 240p retain the lowest rendition during failover');
+    test = await fixture(undefined, true, false, 10);
+    test.transport.lastError = 'river.rutube.ru: HTTP 502 (connection reset)';
+    await test.load();
     await test.retry(); await test.retry();
     assert(test.elements.message.textContent.includes('STREAM_UNAVAILABLE'), 'permanent source failures stop after bounded retries');
+    assert(test.elements.message.textContent.includes(test.transport.lastError), 'the TV displays the native failure instead of only the library wrapper');
+    const failure = JSON.parse(test.logs.at(-1).slice(5));
+    assert.equal(failure.error.reason, 'fetch slice error', 'the original library failure is retained in the diagnostic log');
+    assert.equal(failure.video, id);
+    assert.equal(failure.sourceHost, 'river.rutube.ru');
     test = await fixture(undefined, false); test.tick(65000); test.update();
     assert.notEqual(test.bridge.status().state, 'error', 'slow transport is not failed at the old one-minute deadline');
     test.tick(180000); test.update();
@@ -157,10 +195,25 @@ async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true, syncDuri
     const denied = window.fetch('https://river.rutube.ru/segment.ts');
     window.ixStreamReply({id: requests.pop()[0], status: 403});
     assert.equal((await denied).status, 403, 'permanent HTTP failures are not retried');
+    assert.equal(window.ixStreamStatus().lastFailure.host, 'river.rutube.ru');
+    assert.equal(window.ixStreamStatus().lastFailure.status, 403);
+    const malformed = window.fetch('https://river.rutube.ru/movie.m3u8');
+    const malformedID = requests.pop()[0];
+    window.ixStreamReply({id: malformedID, part: '%invalid-base64%'});
+    window.ixStreamReply({id: malformedID, status: 200});
+    assert.equal(window.ixStreamStatus().lastFailure.resource, 'playlist', 'bridge decoding errors identify the failed resource');
+    assert(window.ixStreamStatus().lastError.includes('river.rutube.ru'));
+    await retry();
+    const recoveredID = requests.pop()[0];
+    window.ixStreamReply({id: recoveredID, part: Buffer.from('#EXTM3U\n').toString('base64')});
+    window.ixStreamReply({id: recoveredID, status: 200});
+    assert.equal(await (await malformed).text(), '#EXTM3U\n');
     const abortRetry = new AbortController();
     const waiting = window.fetch('https://river.rutube.ru/segment.ts', {signal: abortRetry.signal});
     window.ixStreamReply({id: requests.pop()[0], status: 503}); await flush();
+    const lastError = window.ixStreamStatus().lastError;
     abortRetry.abort(); await assert.rejects(waiting, {name: 'AbortError'});
+    assert.equal(window.ixStreamStatus().lastError, lastError, 'cancellation cannot hide the actual network error');
     assert.equal(timers.size, 0, 'abort clears pending transport and retry timers');
     assert.equal(window.ixStreamStatus().pending, 0);
     console.log('Streaming player: software decode, transport bytes/abort, source selection, late join and controls passed');
