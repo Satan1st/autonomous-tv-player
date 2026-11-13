@@ -75,17 +75,30 @@ const {chromium} = require('playwright');
                 window.ixStream = {request: (...args) => { window.nativeMediaRequest(...args); }};
                 window.ixStreamReady = true;
                 const initialTime = Number(new URLSearchParams(location.hash.slice(1)).get('t'));
-                const started = Date.now();
+                window.gameClockPaused = new URLSearchParams(location.hash.slice(1)).get('paused') === '1';
+                window.gameClockStarted = Date.now();
                 window.gameSyncTimer = setInterval(() => {
-                    if (window.ixRutube) window.ixRutube.sync(initialTime + (Date.now() - started) / 1000);
+                    if (window.ixRutube) window.ixRutube.sync(initialTime + (window.gameClockPaused ? 0 : (Date.now() - window.gameClockStarted) / 1000));
                 }, 300);
             });
             try {
-                await page.goto(base + '?stream-check=' + Date.now() + '#v=' + id + '&t=60&volume=0&debug=1');
+                await page.goto(base + '?stream-check=' + Date.now() + '#v=' + id + '&t=60&volume=0&debug=1&paused=' + (process.env.START_PAUSED === '1' ? '1' : '0'));
                 await page.waitForFunction(() => window.AVPlayer && AVPlayer.audioContext || window.ixRutube?.status().state === 'error', undefined, {timeout: 60000});
                 assert.notEqual(await page.evaluate(() => window.ixRutube.status().state), 'error', 'stream initialization failed');
                 if (await page.evaluate(() => AVPlayer.audioContext.state === 'suspended')) {
                     await page.locator('#resume').click({timeout: 10000});
+                }
+                if (process.env.START_PAUSED === '1') {
+                    await page.waitForFunction(() => window.ixRutube.status().ready && !window.ixRutube.status().busy
+                        && window.ixRutube.status().paused, undefined, {timeout: 90000});
+                    const frozen = await page.evaluate(() => window.ixRutube.status());
+                    await page.waitForTimeout(1500);
+                    const still = await page.evaluate(() => window.ixRutube.status());
+                    assert(Math.abs(still.time - 60) < 0.2 && Math.abs(still.time - frozen.time) < 0.1, 'paused late join must hold the shared position');
+                    assert(still.paused, 'audio unlock must preserve the shared pause');
+                    await page.evaluate(() => {
+                        window.gameClockPaused = false; window.gameClockStarted = Date.now(); window.ixRutube.play();
+                    });
                 }
                 await page.waitForFunction(() => window.ixRutube.status().played && !window.ixRutube.status().busy, undefined, {timeout: 90000});
                 const first = await page.evaluate(() => window.ixRutube.status());
@@ -98,6 +111,10 @@ const {chromium} = require('playwright');
                     return window.ixRutube.status();
                 });
                 assert(startup.seekCount <= 2, '300 ms game sync must not continuously restart startup seeking');
+                for (const volume of [1.6, 0.35, 0]) {
+                    await page.evaluate(value => window.ixRutube.volume(value), volume);
+                    await page.waitForFunction(value => Math.abs(window.ixRutube.status().audioGain - value) < 0.01, volume, {timeout: 5000});
+                }
                 await page.evaluate(() => window.ixRutube.pause());
                 await page.waitForFunction(() => !window.ixRutube.status().busy && window.ixRutube.status().paused);
                 const initial = await page.evaluate(() => window.ixRutube.status());
@@ -130,6 +147,7 @@ const {chromium} = require('playwright');
                 assert(bytes < 20 * 1024 * 1024, 'playback must stream bounded fragments rather than an entire movie');
                 results.push({id, title: sources[id].title, browser: browser.version(), gameSyncIntervalMs: 300,
                     segmentDelayMs: segmentDelay, injectedFailure, blockedPlaylistHost, blockedPlaylistRequests,
+                    initiallyPaused: process.env.START_PAUSED === '1', audioGainChecked: true,
                     startupSeekCount: startup.seekCount, steadyVideoFrames: startup.videoFrames - first.videoFrames,
                     status, bytes, requests: transfers.length});
                 console.log(JSON.stringify(results.at(-1)));

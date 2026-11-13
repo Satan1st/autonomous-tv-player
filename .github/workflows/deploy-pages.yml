@@ -51,6 +51,7 @@ jobs:
         env:
           PLAYER_URL: ${{ steps.deployment.outputs.page_url }}
           STOCK_CEF: '1'
+          START_PAUSED: '1'
         run: node tools/smoke-playback.cjs
       - uses: actions/upload-artifact@v4
         if: always()

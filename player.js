@@ -6,7 +6,7 @@
     var diagnostics = document.getElementById('diagnostics');
     var resume = document.getElementById('resume');
     var player, ready = false, played = false, active = false, busy = false, dirty = false, disposed = false;
-    var paused = params.get('paused') === '1', volume = number(params.get('volume'), 0, 1);
+    var paused = params.get('paused') === '1', volume = number(params.get('volume'), 0, 2);
     var target = number(params.get('t'), 0, 43200), targetAt = Date.now(), startedAt = Date.now();
     var current = 0, previous = 0, duration = 0, state = 'loading', seekPending = true, streamURL = null;
     var initiallySynced = false, seekCount = 0, forceSeek = false, lastSeekAt = 0, lastSeekFrames = 0;
@@ -22,7 +22,7 @@
         state = next;
         lastProgressAt = Date.now();
         diagnostics.textContent = next + (detail ? ': ' + detail : '');
-        console.log('IXTV:' + JSON.stringify({version: 7, video: id, state: next, detail: detail || '', decoder: 'wasm-h264-aac',
+        console.log('IXTV:' + JSON.stringify({version: 8, video: id, state: next, detail: detail || '', decoder: 'wasm-h264-aac',
             ready: ready, busy: busy, seekCount: seekCount, restarts: restartCount, error: errorDetail,
             sourceHost: streamURL ? new URL(streamURL).hostname : null,
             transport: window.ixStreamStatus ? window.ixStreamStatus() : null,
@@ -75,7 +75,7 @@
         finally { busy = false; }
     }
     window.ixRutube = {
-        volume: function (value) { volume = number(value, 0, 1); if (player) player.setVolume(volume); },
+        volume: function (value) { volume = number(value, 0, 2); if (player) player.setVolume(volume); },
         pause: function () {
             target = desiredTime(); targetAt = Date.now(); paused = true; apply();
         },
@@ -91,7 +91,9 @@
         status: function () {
             var stats = {};
             try { if (player) stats = player.getStats() || {}; } catch (_) {}
+            var output = player && player.getAudioOutputNode ? player.getAudioOutputNode() : null;
             return {state: state, ready: ready, played: played, paused: paused, advertising: false, busy: busy,
+                volume: volume, audioGain: output && output.gain ? output.gain.value : null,
                 initiallySynced: initiallySynced, seekCount: seekCount, visibility: document.visibilityState,
                 restarts: restartCount, error: errorDetail, transport: window.ixStreamStatus ? window.ixStreamStatus() : null,
                 time: current, duration: duration, source: streamURL, decoder: 'wasm-h264-aac',
@@ -102,7 +104,7 @@
                 videoCodec: stats.videocodec || null, audioCodec: stats.audiocodec || null};
         }
     };
-    resume.addEventListener('click', function () { window.ixRutube.play(); });
+    resume.addEventListener('click', wakeAudio);
 
     async function get(address, json) {
         var response = await window.fetch(address, {cache: 'no-store'});

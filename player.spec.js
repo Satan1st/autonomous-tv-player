@@ -5,7 +5,8 @@ const source = fs.readFileSync('player.js', 'utf8');
 const id = 'f7b6cb8cdec08dfbda31fbcca2281288';
 
 async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true, syncDuringSeek = false, failures = 0, manifest) {
-    const logs = [], events = {}, commands = [], elements = {message: {}, diagnostics: {}, resume: {addEventListener() {}}, screen: {}};
+    const logs = [], events = {}, commands = [], elements = {message: {}, diagnostics: {},
+        resume: {addEventListener(name, callback) { this[name] = callback; }}, screen: {}};
     const loads = [], transport = {lastError: null};
     let clock = 1000, timer, resolveOptions, resolutions = 0;
     const timeouts = [];
@@ -36,6 +37,7 @@ async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true, syncDuri
         getStats() { return stats; }
         async destroy() { commands.push('destroy'); }
     }
+    Player.audioContext = {state: 'suspended', async resume() { this.state = 'running'; }};
     const context = {AVPlayer: Player, URL, URLSearchParams, BigInt, Date: {now: () => clock},
         console: {log: line => logs.push(line)}, document: {getElementById: key => elements[key]},
         window: {AVPlayer: Player, WebAssembly: {}, ixCanvasVideo: {installed: true, renderer: 'canvas2d'}, ixStreamReady: nativeReady, location: {hash}, addEventListener() {},
@@ -72,10 +74,24 @@ async function fixture(hash = '#v=' + id + '&t=42', nativeReady = true, syncDuri
     test.bridge.sync(120); await test.flush();
     assert(test.commands.includes(120000));
     test.bridge.volume(-3); assert.equal(test.player.volume, 0);
+    test.bridge.volume(1.6); assert.equal(test.player.volume, 1.6, 'quiet tapes can be amplified above unity');
+    test.bridge.volume(20); assert.equal(test.player.volume, 2, 'amplification remains bounded');
+    test.bridge.volume(0); assert.equal(test.player.volume, 0, 'mute also applies to amplified playback');
     test.bridge.pause(); await test.flush(); test.tick(10000); test.bridge.play(); await test.flush();
     assert.equal(test.bridge.status().time, 120);
     test = await fixture(); test.tick(10000); await test.load();
     assert(test.commands.includes(52000));
+    test = await fixture('#v=' + id + '&t=120&paused=1&volume=1.5');
+    test.tick(30000); await test.load();
+    assert(test.commands.includes(120000), 'late joining a paused film does not advance its clock during loading');
+    assert.equal(test.commands.at(-1), 'pause');
+    assert.equal(test.player.volume, 1.5);
+    test.elements.resume.click(); await test.flush();
+    assert(test.bridge.status().paused, 'unlocking browser audio cannot resume the shared paused film');
+    test.tick(60000); test.bridge.sync(120); await test.flush();
+    assert.equal(test.bridge.status().time, 120);
+    test.bridge.play(); await test.flush();
+    assert.equal(test.commands.filter(command => typeof command === 'number').length, 1, 'resuming a paused join keeps its position');
     test = await fixture('#v=invalid');
     assert(test.elements.message.textContent.includes('INVALID_VIDEO'));
     test = await fixture(undefined, false); await test.load();
