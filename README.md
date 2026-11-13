@@ -6,9 +6,11 @@ Player: https://satan1st.github.io/autonomous-tv-player/
 
 ## In-game integration
 
-The `ix_rutube` service, version **7**, opens `/#v=<Rutube ID>&t=0&volume=0&paused=0`, with a fresh document query for each playback session. The existing cassette IDs are preserved. `window.ixRutube.play()`, `.pause()`, `.volume(0..2)`, `.sync(seconds)` and `.status()` provide the playback interface. Player diagnostics are version **8**.
+The `ix_rutube` service, version **8**, opens `/#v=<Rutube ID>&t=0&volume=0&paused=0`, with a fresh document query for each playback session. The existing cassette IDs are preserved. `window.ixRutube.play()`, `.pause()`, `.volume(0..2)`, `.sync(seconds)` and `.status()` provide the playback interface. Player diagnostics are version **8**.
 
 The television's TAB → right-click menu offers shared pause/resume and a 0–200% volume slider. The TV gain multiplies each viewer's existing distance-adjusted volume, preserving client mute. Pausing freezes the shared Media Player clock; late viewers load at the frozen position, and resuming reuses the browser. The audio-unlock button preserves the shared pause. `status().volume` reports the requested gain and `status().audioGain` the actual Web Audio gain.
+
+Service **8** also offers a saved per-player Rutube / YouTube choice in that menu and in audio settings. YouTube uses the original Media Player iframe page and each tape's `youtubeID`; switching preserves the common clock and pause while reloading only that viewer's page. Its native final volume is capped at 1. Rutube remains the default and continues to use this software player.
 
 Rutube does not grant cross-origin JavaScript access to its API/CDN from this Pages origin. The service provides a restricted, read-only **client-side** `DHTML:AddFunction` HTTP transport for HTTPS Rutube/CDN URLs. Fragments travel directly from Rutube to that player's GMod process and into the decoder's RAM. The game server handles only ordinary cassette metadata and shared playback state.
 
